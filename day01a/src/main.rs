@@ -1,7 +1,7 @@
-use std::{fs::read_to_string, vec};
+use std::{collections::BinaryHeap, fs::read_to_string};
 
 fn main() {
-    let mut val = read_to_string("./src/input.txt")
+    let (heap1, heap2) = read_to_string("./src/input.txt")
         .unwrap()
         .lines()
         .map(|line| {
@@ -12,20 +12,20 @@ fn main() {
             (str1.parse::<i64>().unwrap(), str2.parse::<i64>().unwrap())
         })
         .fold(
-            (vec![0i64; 0], vec![0i64; 0]),
-            |mut vec_tup, (left, right)| {
-                vec_tup.0.push(left);
-                vec_tup.1.push(right);
-                vec_tup
+            (BinaryHeap::<i64>::new(), BinaryHeap::<i64>::new()),
+            |(mut heap1, mut heap2), (left, right)| {
+                heap1.push(left);
+                heap2.push(right);
+                (heap1, heap2)
             },
         );
-    val.0.sort();
-    val.1.sort();
+
     println!(
         "Result: {:?}",
-        val.0
+        heap1
+            .into_sorted_vec()
             .iter()
-            .zip(val.1.iter())
+            .zip(heap2.into_sorted_vec().iter())
             .map(|(left, right)| (right - left).abs())
             .sum::<i64>()
     );
