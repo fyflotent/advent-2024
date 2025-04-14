@@ -12,7 +12,6 @@ enum Pattern {
     Unknown,
     First(i32),
     Dir(Direction),
-    Retry(Vec<i32>, Option<Vec<i32>>),
     Inconsistent,
 }
 
@@ -39,48 +38,29 @@ fn get_dir_if_in_range(direction: Direction) -> Pattern {
     }
 }
 
-fn check_row(row: Vec<i32>) -> Pattern {
-    println!("{:?}", row);
-    return row.iter().enumerate().fold(
-        Unknown,
-        |current_direction, (index, current_value)| match (current_direction, current_value) {
-            (Unknown, value) => First(*value),
-            (First(prev), value) => match get_direction(prev, *value) {
-                Same => {
-                    let mut row_copy = row.clone();
-                    row_copy.remove(index);
-                    let mut row_copy_2 = row.clone();
-                    row_copy_2.remove(index - 1);
-                    Retry(row_copy, Some(row_copy_2))
-                }
-                direction @ Ascending(_, _) | direction @ Descending(_, _) => {
-                    get_dir_if_in_range(direction)
-                }
-            },
+fn check_row(row: &Vec<i32>) -> Pattern {
+    row.iter()
+        .fold(Unknown, |current_direction, current_value| {
+            match (current_direction, current_value) {
+                (Unknown, value) => First(*value),
+                (First(prev), value) => match get_direction(prev, *value) {
+                    Same => Inconsistent,
+                    direction @ Ascending(_, _) | direction @ Descending(_, _) => {
+                        get_dir_if_in_range(direction)
+                    }
+                },
 
-            (Dir(Ascending(prev, _)), value) => match get_direction(prev, *value) {
-                direction @ Ascending(_, _) => get_dir_if_in_range(direction),
-                _ => {
-                    let mut row_copy = row.clone();
-                    row_copy.remove(index);
-                    let mut row_copy_2 = row.clone();
-                    row_copy_2.remove(index - 1);
-                    Retry(row_copy, Some(row_copy_2))
-                }
-            },
-            (Dir(Descending(prev, _)), value) => match get_direction(prev, *value) {
-                direction @ Descending(_, _) => get_dir_if_in_range(direction),
-                _ => {
-                    let mut row_copy = row.clone();
-                    row_copy.remove(index);
-                    let mut row_copy_2 = row.clone();
-                    row_copy_2.remove(index - 1);
-                    Retry(row_copy, Some(row_copy_2))
-                }
-            },
-            a => a.0,
-        },
-    );
+                (Dir(Ascending(prev, _)), value) => match get_direction(prev, *value) {
+                    direction @ Ascending(_, _) => get_dir_if_in_range(direction),
+                    _ => Inconsistent,
+                },
+                (Dir(Descending(prev, _)), value) => match get_direction(prev, *value) {
+                    direction @ Descending(_, _) => get_dir_if_in_range(direction),
+                    _ => Inconsistent,
+                },
+                _ => Inconsistent,
+            }
+        })
 }
 
 fn main() {
@@ -92,22 +72,28 @@ fn main() {
                 .map(|strnum| strnum.parse::<i32>().unwrap())
                 .collect::<Vec<_>>()
         })
-        .map(|row| match check_row(row) {
-            Retry(retry_row, retry_row_2_option) => match check_row(retry_row) {
-                Retry(_, _) => match retry_row_2_option {
-                    Some(retry_row_2) => check_row(retry_row_2),
-                    _ => Inconsistent,
-                },
-
-                a => a,
-            },
-            pattern => pattern,
+        .map(|row| match check_row(&row) {
+            Inconsistent => {
+                let mut pattern = Inconsistent;
+                for i in 0..row.len() {
+                    let mut row_copy = row.clone();
+                    row_copy.remove(i);
+                    match check_row(&row_copy) {
+                        Inconsistent => Inconsistent,
+                        a => {
+                            pattern = a;
+                            break;
+                        }
+                    };
+                }
+                pattern
+            }
+            a => a,
         })
         .filter(|pattern| match pattern {
             Inconsistent => false,
-            Retry(_, _) => false,
             _ => true,
         });
 
-    println!("{}", val.collect::<Vec<_>>().len())
+    println!("{:?}", val.collect::<Vec<_>>().len())
 }
